@@ -7,6 +7,7 @@ export default class Autocomplete {
         onSelect: () => {
           this.onHide();
         },
+        onHide: f => f,
         activeClassName: 'active',
         hiddenClassName: 'hidden',
         onFetch: fetchDefault(options.data),
@@ -83,6 +84,7 @@ export default class Autocomplete {
 
   onHide() {
     this.rootEl.classList.add(this.options.hiddenClassName);
+    this.options.onHide(this.rootEl);
   }
 
   onQueryChange(query) {
