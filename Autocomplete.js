@@ -6,12 +6,23 @@ export default class Autocomplete {
     this.init();
   }
 
-  onQueryChange(query) {
-    // Get data for the dropdown
-    let results = this.getResults(query, this.options.data);
-    results = results.slice(0, this.options.numOfResults);
+  init() {
+    this.onQueryChange = debouce(this.onQueryChange, 300);
 
-    this.updateDropdown(results);
+    this.rootEl.appendChild(
+      createQueryInputEl({
+        onInput: e => this.onQueryChange(e.target.value),
+      }),
+    );
+
+    this.listEl = createUlElement();
+    this.rootEl.appendChild(this.listEl);
+  }
+
+  onQueryChange(query) {
+    const { data, numOfResults } = this.options;
+
+    this.updateDropdown(this.getResults(query, data).slice(0, numOfResults));
   }
 
   /**
@@ -19,62 +30,57 @@ export default class Autocomplete {
    */
   getResults(query, data) {
     if (!query) return [];
-
-    // Filter for matching strings
-    let results = data.filter((item) => {
-      return item.text.toLowerCase().includes(query.toLowerCase());
-    });
-
-    return results;
+    query = query.toLowerCase();
+    return data.filter(({ text }) => text.toLowerCase().includes(query));
   }
 
   updateDropdown(results) {
+    const { onSelect = f => f } = this.options;
+
     this.listEl.innerHTML = '';
-    this.listEl.appendChild(this.createResultsEl(results));
+    this.listEl.appendChild(createResultsEl(results, onSelect));
   }
+}
 
-  createResultsEl(results) {
-    const fragment = document.createDocumentFragment();
-    results.forEach((result) => {
-      const el = document.createElement('li');
-      Object.assign(el, {
-        className: 'result',
-        textContent: result.text,
-      });
+function createLiElement({ text }, onSelect) {
+  return Object.assign(document.createElement('li'), {
+    className: 'result',
+    textContent: text,
+    onclick: onSelect,
+  });
+}
 
-      // Pass the value to the onSelect callback
-      el.addEventListener('click', (event) => {
-        const { onSelect } = this.options;
-        if (typeof onSelect === 'function') onSelect(result.value);
-      });
+function createResultsEl(results, onSelect) {
+  const fragment = document.createDocumentFragment();
 
-      fragment.appendChild(el);
-    });
-    return fragment;
-  }
+  results
+    .map(result => createLiElement(result, onSelect))
 
-  createQueryInputEl() {
-    const inputEl = document.createElement('input');
-    Object.assign(inputEl, {
-      type: 'search',
-      name: 'query',
-      autocomplete: 'off',
-    });
+    .forEach(el => fragment.appendChild(el));
 
-    inputEl.addEventListener('input', event =>
-      this.onQueryChange(event.target.value));
+  return fragment;
+}
 
-    return inputEl;
-  }
+function createQueryInputEl({ onInput }) {
+  return Object.assign(document.createElement('input'), {
+    type: 'search',
+    name: 'query',
+    autocomplete: 'off',
+    oninput: onInput,
+  });
+}
 
-  init() {
-    // Build query input
-    this.inputEl = this.createQueryInputEl();
-    this.rootEl.appendChild(this.inputEl)
+function createUlElement() {
+  return Object.assign(document.createElement('ul'), { className: 'results' });
+}
 
-    // Build results dropdown
-    this.listEl = document.createElement('ul');
-    Object.assign(this.listEl, { className: 'results' });
-    this.rootEl.appendChild(this.listEl);
-  }
+function debouce(fn, timeout) {
+  let timeoutId = null;
+
+  return function() {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      fn.apply(this, arguments);
+    }, timeout);
+  };
 }
