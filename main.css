@@ -16,6 +16,10 @@ ul {
   margin: 0;
 }
 
+.hidden > ul {
+  display: none;
+}
+
 .results {
   border: 1px solid #ccc;
   border-top: 0;
