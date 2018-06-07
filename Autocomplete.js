@@ -7,6 +7,8 @@ export default class Autocomplete {
         onSelect: () => {
           this.onHide();
         },
+        activeClassName: 'active',
+        hiddenClassName: 'hidden',
         onFetch: fetchDefault(options.data),
       },
       options,
@@ -17,12 +19,10 @@ export default class Autocomplete {
   }
 
   init() {
+    this.activeIndex = 0;
     this.onQueryChange = debouce(this.onQueryChange, 300);
     this.inputEl = createQueryInputEl({
-      onInput: e => this.onQueryChange(e.target.value),
-      onBlur: () => {
-        this.onHide();
-      },
+      oninput: e => this.onQueryChange(e.target.value),
     });
 
     this.rootEl.appendChild(this.inputEl);
@@ -30,14 +30,59 @@ export default class Autocomplete {
     this.listEl = createUlElement();
     this.rootEl.appendChild(this.listEl);
     this.onHide();
+
+    this.rootEl.addEventListener('keydown', e => {
+      let { keyCode, target } = e;
+
+      if (keyCode === 40 || keyCode === 38) {
+        this.updateItemFocus(keyCode === 38);
+      }
+      if (keyCode === 13) {
+        this.clickOnItem();
+      }
+    });
+  }
+
+  clickOnItem() {
+    let { activeClassName } = this.options;
+    let { element } = this.getItemWithClassName(this.rootEl.querySelectorAll('.result'), activeClassName);
+
+    element.dispatchEvent(new Event('click'));
+  }
+
+  getItemWithClassName(els, classname) {
+    let activeIndex = 0;
+    let element = null;
+    els.forEach((el, index) => {
+      if (el.classList.contains(classname)) {
+        activeIndex = index;
+        element = el;
+      }
+    });
+
+    return {
+      activeIndex,
+      element,
+    };
+  }
+
+  updateItemFocus(isUp) {
+    let { activeClassName } = this.options;
+    let extra = isUp ? -1 : 1;
+    let els = this.rootEl.querySelectorAll('.result');
+    let { element, activeIndex = 0 } = this.getItemWithClassName(els, activeClassName);
+
+    element.classList.remove(activeClassName);
+    activeIndex = (activeIndex + extra + els.length) % els.length;
+    els[activeIndex].classList.add(activeClassName);
   }
 
   onShow() {
-    this.rootEl.classList.remove('hidden');
+    this.rootEl.classList.remove(this.options.hiddenClassName);
   }
 
   onHide() {
-    this.rootEl.classList.add('hidden');
+    this.rootEl.classList.add(this.options.hiddenClassName);
   }
 
   onQueryChange(query) {
@@ -60,20 +105,22 @@ export default class Autocomplete {
   }
 
   updateDropdown(results) {
-    const { onSelect } = this.options;
+    const { onSelect, activeClassName } = this.options;
     this.onShow();
 
+    let listItems = createListItemsFragment(results, e => {
+      onSelect(e);
+      this.onHide();
+    });
+
+    listItems.children[0].classList.add(activeClassName);
+
     this.listEl.innerHTML = '';
-    this.listEl.appendChild(
-      createResultsEl(results, e => {
-        onSelect(e);
-        this.onHide();
-      }),
-    );
+    this.listEl.appendChild(listItems);
   }
 }
 
-function createLiElement({ text }, onSelect) {
+function createListItem({ text }, onSelect) {
   return Object.assign(document.createElement('li'), {
     className: 'result',
     textContent: text,
@@ -81,25 +128,27 @@ function createLiElement({ text }, onSelect) {
   });
 }
 
-function createResultsEl(results, onSelect) {
+function createListItemsFragment(results, onSelect) {
   const fragment = document.createDocumentFragment();
 
   results
-    .map(result => createLiElement(result, onSelect))
+    .map(result => createListItem(result, onSelect))
 
     .forEach(el => fragment.appendChild(el));
 
   return fragment;
 }
 
-function createQueryInputEl({ onInput, onBlur }) {
-  return Object.assign(document.createElement('input'), {
-    type: 'search',
-    name: 'query',
-    autocomplete: 'off',
-    oninput: onInput,
-    onblur: onBlur,
-  });
+function createQueryInputEl(opts = {}) {
+  return Object.assign(
+    document.createElement('input'),
+    {
+      type: 'search',
+      name: 'query',
+      autocomplete: 'off',
+    },
+    opts,
+  );
 }
 
 function createUlElement() {

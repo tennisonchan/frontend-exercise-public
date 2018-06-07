@@ -12,15 +12,15 @@ const getGithubUserUrl = (query, perPage) => `https://api.github.com/search/user
 
 new Autocomplete(document.getElementById('state'), {
   data,
-  onSelect: stateCode => {
-    console.log('selected state:', stateCode);
+  onSelect: e => {
+    console.log('selected state:', e);
   },
 });
 
 // Github Users
 new Autocomplete(document.getElementById('gh-user'), {
-  onSelect: ghUserId => {
-    console.log('selected github user id:', ghUserId);
+  onSelect: e => {
+    console.log('selected github user id:', e);
   },
   onFetch: (query, numOfResults) => {
     return fetch(getGithubUserUrl(query, numOfResults))
